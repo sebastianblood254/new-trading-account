@@ -123,9 +123,22 @@ const AppContent = observer(() => {
         const retrieveActiveSymbols = () => {
             const { active_symbols } = ApiHelpers.instance;
 
-            active_symbols.retrieveActiveSymbols(true).then(() => {
+            // Add a safety timeout to prevent forever loading if the API hangs
+            const safetyTimeoutId = setTimeout(() => {
                 setIsLoading(false);
-            });
+            }, 10000); // 10 seconds safety timeout
+
+            active_symbols
+                .retrieveActiveSymbols(true)
+                .then(() => {
+                    clearTimeout(safetyTimeoutId);
+                    setIsLoading(false);
+                })
+                .catch(error => {
+                    clearTimeout(safetyTimeoutId);
+                    console.error('Failed to retrieve active symbols:', error);
+                    setIsLoading(false);
+                });
         };
 
         if (ApiHelpers?.instance?.active_symbols) {
@@ -139,6 +152,12 @@ const AppContent = observer(() => {
                     retrieveActiveSymbols();
                 }
             }, 1000);
+
+            // Also clear interval if it takes too long
+            setTimeout(() => {
+                clearInterval(intervalId);
+                setIsLoading(false);
+            }, 15000);
         }
     };
 
